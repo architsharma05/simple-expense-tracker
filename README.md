@@ -14,7 +14,7 @@ This is a basic Java desktop application for tracking expenses. The user can ent
 
 ## Application Screenshot
 
-![Main Application](Screenshots/Screenshot 2026-06-14 at 11.14.30 PM.png)
+![Main Application](Screenshots/Screenshot1.png)
 
 ## Files
 
