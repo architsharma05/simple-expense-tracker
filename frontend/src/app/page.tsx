@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiFetch, AiAnswer, AiInsight, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
+import { apiFetch, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -65,12 +66,14 @@ export default function HomePage() {
     if (filters.category) params.set("category", filters.category);
     if (filters.type) params.set("type", filters.type);
     const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends, nextInsights] = await Promise.all([
+    const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends] = await Promise.all([
       apiFetch<Transaction[]>(`/api/transactions?${params.toString()}`, { token: activeToken }),
       apiFetch<Budget[]>("/api/budgets", { token: activeToken }),
       apiFetch<MonthlySummary>(`/api/dashboard/summary?month=${currentMonth}`, { token: activeToken }),
       apiFetch<CategorySummary[]>(`/api/dashboard/category-summary?from=${currentMonth}-01&to=${today}`, { token: activeToken }),
       apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken }),
       apiFetch<AiInsight[]>("/api/ai/insights", { token: activeToken })
+      apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken })
     ]);
     setTransactions(nextTransactions);
     setBudgets(nextBudgets);

@@ -5,6 +5,7 @@ AI Finance Copilot is a production-oriented personal finance platform evolved fr
 ## Project Status
 
 Phase 2 AI Copilot foundation is implemented:
+Phase 1 MVP is implemented:
 
 - Original Swing + CSV application preserved in `legacy-swing/`
 - Spring Boot backend scaffold added in `backend/`
