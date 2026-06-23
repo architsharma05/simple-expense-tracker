@@ -50,4 +50,23 @@ Supported filters:
 - `POST /api/ai/budget-coach`
 - `POST /api/ai/chat`
 - `GET /api/ai/insights`
+- `POST /api/ai/goal-coach`
+- `POST /api/ai/categorize-transaction`
 
+## Analytical Insights
+
+- `GET /api/insights/recurring-expenses`
+- `GET /api/insights/anomalies`
+
+
+## Forecasting
+
+- `GET /api/forecast/month-end`
+- `GET /api/forecast/categories`
+
+## Receipts
+
+- `GET /api/receipts`
+- `POST /api/receipts/upload`
+- `POST /api/receipts/{id}/extract`
+- `DELETE /api/receipts/{id}`

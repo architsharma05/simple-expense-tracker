@@ -16,6 +16,31 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build: ./backend
+    container_name: ai-finance-copilot-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/ai_finance_copilot
+      DATABASE_USERNAME: finance
+      DATABASE_PASSWORD: finance
+      JWT_SECRET: change-me-in-production-change-me-now
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: ai-finance-copilot-frontend
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+
 volumes:
   postgres_data:
-
