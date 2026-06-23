@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: ai-finance-copilot
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ai_finance_copilot}
+    username: ${DATABASE_USERNAME:finance}
+    password: ${DATABASE_PASSWORD:finance}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+

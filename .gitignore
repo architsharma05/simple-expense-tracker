@@ -1,2 +1,23 @@
+# Java
+target/
 *.class
+
+# Node
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
 .DS_Store
+
+# Uploads and generated files
+uploads/
+*.log

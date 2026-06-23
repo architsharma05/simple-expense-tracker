@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.Map;
+import java.util.Date;
 
 public class ExpenseTrackerApp extends JFrame {
     private ExpenseManager manager;
@@ -106,6 +107,14 @@ public class ExpenseTrackerApp extends JFrame {
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Amount must be a number.");
         }
+
+        try {
+            Date parsedDate = new java.text.SimpleDateFormat("yyyy-MM-dd").parse(date);
+        } catch (java.text.ParseException e) {
+            JOptionPane.showMessageDialog(this, "Date must be in YYYY-MM-DD format.");
+            return;
+        }
+
     }
 
     private void loadTableData() {
