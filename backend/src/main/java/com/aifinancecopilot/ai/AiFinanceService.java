@@ -41,33 +41,28 @@ public class AiFinanceService {
     private final AiInsightRepository aiInsightRepository;
 
     public AiFinanceService(OpenAiClient openAiClient, TransactionRepository transactionRepository,
-                            BudgetRepository budgetRepository, GoalRepository goalRepository,
-                            AiInsightRepository aiInsightRepository) {
+            BudgetRepository budgetRepository, GoalRepository goalRepository,
+            AiInsightRepository aiInsightRepository) {
         this.openAiClient = openAiClient;
         this.transactionRepository = transactionRepository;
         this.budgetRepository = budgetRepository;
         this.goalRepository = goalRepository;
-    private final AiInsightRepository aiInsightRepository;
-
-    public AiFinanceService(OpenAiClient openAiClient, TransactionRepository transactionRepository,
-                            BudgetRepository budgetRepository, AiInsightRepository aiInsightRepository) {
-        this.openAiClient = openAiClient;
-        this.transactionRepository = transactionRepository;
-        this.budgetRepository = budgetRepository;
         this.aiInsightRepository = aiInsightRepository;
     }
 
     @Transactional
     public AiAnswerResponse spendingSummary(User user) {
         YearMonth month = YearMonth.now();
-        String prompt = "Summarize this month's spending, identify the top categories, and recommend 3 practical next steps.\n\n" + context(user, month.atDay(1), month.atEndOfMonth());
+        String prompt = "Summarize this month's spending, identify the top categories, and recommend 3 practical next steps.\n\n"
+                + context(user, month.atDay(1), month.atEndOfMonth());
         return answerAndStore(user, prompt);
     }
 
     @Transactional
     public AiAnswerResponse budgetCoach(User user) {
         YearMonth month = YearMonth.now();
-        String prompt = "Compare current month expenses against budgets. Identify overspending risk and recommend budget adjustments.\n\n" + context(user, month.atDay(1), month.atEndOfMonth());
+        String prompt = "Compare current month expenses against budgets. Identify overspending risk and recommend budget adjustments.\n\n"
+                + context(user, month.atDay(1), month.atEndOfMonth());
         return answerAndStore(user, prompt);
     }
 
@@ -84,15 +79,18 @@ public class AiFinanceService {
     public AiAnswerResponse chat(User user, String question) {
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusMonths(6).withDayOfMonth(1);
-        String prompt = "User question: " + question + "\n\nAnswer using this finance context.\n\n" + context(user, from, to);
+        String prompt = "User question: " + question + "\n\nAnswer using this finance context.\n\n"
+                + context(user, from, to);
         return answerAndStore(user, prompt);
     }
 
     @Transactional
     public CategorizeTransactionResponse categorize(User user, CategorizeTransactionRequest request) {
         String prompt = "Suggest one concise transaction category for this transaction. Return a short category and rationale.\n"
-                + "Type: " + request.type() + "\nAmount: $" + request.amount() + "\nDescription: " + request.description() + "\n\n"
-                + "Recent user context:\n" + context(user, LocalDate.now().minusMonths(3).withDayOfMonth(1), LocalDate.now());
+                + "Type: " + request.type() + "\nAmount: $" + request.amount() + "\nDescription: "
+                + request.description() + "\n\n"
+                + "Recent user context:\n"
+                + context(user, LocalDate.now().minusMonths(3).withDayOfMonth(1), LocalDate.now());
         if (openAiClient.isConfigured()) {
             String answer = openAiClient.generate(SYSTEM_INSTRUCTIONS, prompt);
             String category = answer.lines().filter(line -> !line.isBlank()).findFirst().orElse("Uncategorized");
@@ -110,12 +108,17 @@ public class AiFinanceService {
 
     private CategorizeTransactionResponse fallbackCategory(CategorizeTransactionRequest request) {
         String description = request.description().toLowerCase();
-        String category = description.contains("uber") || description.contains("lyft") || description.contains("gas") ? "Transportation"
-                : description.contains("grocery") || description.contains("restaurant") || description.contains("coffee") ? "Food"
-                : description.contains("rent") || description.contains("mortgage") ? "Housing"
-                : description.contains("netflix") || description.contains("spotify") || description.contains("subscription") ? "Subscriptions"
-                : request.type() == TransactionType.INCOME ? "Income" : "General";
-        return new CategorizeTransactionResponse(category, 0.55, "Rule-based preview categorization because OPENAI_API_KEY is not configured.", false);
+        String category = description.contains("uber") || description.contains("lyft") || description.contains("gas")
+                ? "Transportation"
+                : description.contains("grocery") || description.contains("restaurant")
+                        || description.contains("coffee") ? "Food"
+                                : description.contains("rent") || description.contains("mortgage") ? "Housing"
+                                        : description.contains("netflix") || description.contains("spotify")
+                                                || description.contains("subscription") ? "Subscriptions"
+                                                        : request.type() == TransactionType.INCOME ? "Income"
+                                                                : "General";
+        return new CategorizeTransactionResponse(category, 0.55,
+                "Rule-based preview categorization because OPENAI_API_KEY is not configured.", false);
     }
 
     private AiAnswerResponse answerAndStore(User user, String prompt) {
@@ -132,7 +135,8 @@ public class AiFinanceService {
         BigDecimal expenses = total(transactions, TransactionType.EXPENSE);
         Map<String, BigDecimal> byCategory = transactions.stream()
                 .filter(transaction -> transaction.getType() == TransactionType.EXPENSE)
-                .collect(Collectors.groupingBy(Transaction::getCategory, Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)));
+                .collect(Collectors.groupingBy(Transaction::getCategory,
+                        Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)));
         String categoryLines = byCategory.entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
                 .map(entry -> "- " + entry.getKey() + ": $" + entry.getValue())
@@ -143,7 +147,9 @@ public class AiFinanceService {
         String recentLines = transactions.stream()
                 .sorted(Comparator.comparing(Transaction::getTransactionDate).reversed())
                 .limit(25)
-                .map(transaction -> "- " + transaction.getTransactionDate() + " " + transaction.getType() + " " + transaction.getCategory() + " $" + transaction.getAmount() + " " + nullToEmpty(transaction.getDescription()))
+                .map(transaction -> "- " + transaction.getTransactionDate() + " " + transaction.getType() + " "
+                        + transaction.getCategory() + " $" + transaction.getAmount() + " "
+                        + nullToEmpty(transaction.getDescription()))
                 .collect(Collectors.joining("\n"));
         return "Period: " + from + " to " + to + "\n"
                 + "Income: $" + income + "\n"
@@ -157,7 +163,8 @@ public class AiFinanceService {
     private String goals(User user) {
         List<Goal> goals = goalRepository.findByUserIdOrderByTargetDateAsc(user.getId());
         String lines = goals.stream()
-                .map(goal -> "- " + goal.getGoalName() + ": target $" + goal.getTargetAmount() + " by " + goal.getTargetDate())
+                .map(goal -> "- " + goal.getGoalName() + ": target $" + goal.getTargetAmount() + " by "
+                        + goal.getTargetDate())
                 .collect(Collectors.joining("\n"));
         return emptyIfBlank(lines);
     }
@@ -172,15 +179,23 @@ public class AiFinanceService {
 
     private String fallbackAnswer(String prompt) {
         return "OpenAI is not configured, so this deterministic preview was generated from your scoped finance data.\n\n"
-                + prompt.lines().filter(line -> line.startsWith("Income:") || line.startsWith("Expenses:") || line.startsWith("Net:") || line.startsWith("- "))
-                .limit(12).collect(Collectors.joining("\n"))
+                + prompt.lines()
+                        .filter(line -> line.startsWith("Income:") || line.startsWith("Expenses:")
+                                || line.startsWith("Net:") || line.startsWith("- "))
+                        .limit(12).collect(Collectors.joining("\n"))
                 + "\n\nSet OPENAI_API_KEY to enable full AI analysis.";
     }
 
     private static BigDecimal total(List<Transaction> transactions, TransactionType type) {
-        return transactions.stream().filter(transaction -> transaction.getType() == type).map(Transaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return transactions.stream().filter(transaction -> transaction.getType() == type).map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private static String emptyIfBlank(String value) { return value == null || value.isBlank() ? "- None yet" : value; }
-    private static String nullToEmpty(String value) { return value == null ? "" : value; }
+    private static String emptyIfBlank(String value) {
+        return value == null || value.isBlank() ? "- None yet" : value;
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
 }
