@@ -8,6 +8,8 @@ import com.aifinancecopilot.budget.Budget;
 import com.aifinancecopilot.budget.BudgetRepository;
 import com.aifinancecopilot.goal.Goal;
 import com.aifinancecopilot.goal.GoalRepository;
+import com.aifinancecopilot.budget.Budget;
+import com.aifinancecopilot.budget.BudgetRepository;
 import com.aifinancecopilot.transaction.Transaction;
 import com.aifinancecopilot.transaction.TransactionRepository;
 import com.aifinancecopilot.transaction.TransactionType;
@@ -45,6 +47,13 @@ public class AiFinanceService {
         this.transactionRepository = transactionRepository;
         this.budgetRepository = budgetRepository;
         this.goalRepository = goalRepository;
+    private final AiInsightRepository aiInsightRepository;
+
+    public AiFinanceService(OpenAiClient openAiClient, TransactionRepository transactionRepository,
+                            BudgetRepository budgetRepository, AiInsightRepository aiInsightRepository) {
+        this.openAiClient = openAiClient;
+        this.transactionRepository = transactionRepository;
+        this.budgetRepository = budgetRepository;
         this.aiInsightRepository = aiInsightRepository;
     }
 

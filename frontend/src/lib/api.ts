@@ -37,6 +37,7 @@ export type AiInsight = { id: string; insightText: string; generatedAt: string }
 export async function apiFetch<T>(path: string, init?: RequestInit & { token?: string }): Promise<T> {
   const headers = new Headers(init?.headers);
   if (!(init?.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  headers.set("Content-Type", "application/json");
   if (init?.token) headers.set("Authorization", `Bearer ${init.token}`);
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });

@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiFetch, AiAnswer, AiInsight, Anomaly, AuthResponse, Budget, CategoryForecast, CategorySuggestion, CategorySummary, Goal, MonthEndForecast, MonthlySummary, MonthlyTrend, Receipt, ReceiptExtraction, RecurringExpense, Transaction, TransactionType, User } from "@/lib/api";
+import { apiFetch, AiAnswer, AiInsight, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
+import { apiFetch, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -83,6 +85,10 @@ export default function HomePage() {
       apiFetch<MonthEndForecast>("/api/forecast/month-end", { token: activeToken }),
       apiFetch<CategoryForecast[]>("/api/forecast/categories", { token: activeToken }),
       apiFetch<Receipt[]>("/api/receipts", { token: activeToken }),
+    const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends, nextInsights] = await Promise.all([
+    const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends] = await Promise.all([
+      apiFetch<Transaction[]>(`/api/transactions?${params.toString()}`, { token: activeToken }),
+      apiFetch<Budget[]>("/api/budgets", { token: activeToken }),
       apiFetch<MonthlySummary>(`/api/dashboard/summary?month=${currentMonth}`, { token: activeToken }),
       apiFetch<CategorySummary[]>(`/api/dashboard/category-summary?from=${currentMonth}-01&to=${today}`, { token: activeToken }),
       apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken }),
@@ -96,6 +102,10 @@ export default function HomePage() {
     setMonthEndForecast(nextMonthEndForecast);
     setCategoryForecasts(nextCategoryForecasts);
     setReceipts(nextReceipts);
+      apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken })
+    ]);
+    setTransactions(nextTransactions);
+    setBudgets(nextBudgets);
     setSummary(nextSummary);
     setCategories(nextCategories);
     setTrends(nextTrends);
@@ -191,6 +201,9 @@ export default function HomePage() {
   async function runAi(kind: "summary" | "coach" | "goal" | "chat") {
     if (!token) return;
     const path = kind === "summary" ? "/api/ai/spending-summary" : kind === "coach" ? "/api/ai/budget-coach" : kind === "goal" ? "/api/ai/goal-coach" : "/api/ai/chat";
+  async function runAi(kind: "summary" | "coach" | "chat") {
+    if (!token) return;
+    const path = kind === "summary" ? "/api/ai/spending-summary" : kind === "coach" ? "/api/ai/budget-coach" : "/api/ai/chat";
     const answer = await apiFetch<AiAnswer>(path, {
       method: "POST",
       token,
@@ -213,6 +226,7 @@ export default function HomePage() {
   if (!user) {
     return (
       <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-slate-950 text-white">
         <section className="mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-300">AI Finance Copilot</p>
@@ -319,6 +333,75 @@ export default function HomePage() {
           </div>
           {receiptExtraction && <div className="mt-3 rounded-xl border border-blue-500/20 p-3 text-sm text-blue-100">{receiptExtraction.status}: {receiptExtraction.notes}</div>}
           <div className="mt-4 space-y-2">{receipts.slice(0, 6).map((receipt) => <div key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-500/20 p-3 text-sm"><span>{new Date(receipt.uploadedAt).toLocaleString()} · {receipt.fileUrl}</span><span className="flex gap-2"><button className="text-blue-300" onClick={() => extractReceipt(receipt.id)}>Extract</button><button className="text-red-300" onClick={() => deleteReceipt(receipt.id)}>Delete</button></span></div>)}</div>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white p-6 text-slate-950 shadow-2xl">
+            <h2 className="text-2xl font-semibold">Access your workspace</h2>
+            <div className="mt-5 space-y-3">
+              <input className="w-full rounded-xl border p-3" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
+              <input className="w-full rounded-xl border p-3" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
+              {message && <p className="text-sm text-red-600">{message}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <button className="rounded-xl bg-emerald-600 p-3 font-semibold text-white" onClick={() => authenticate("login")}>Log in</button>
+                <button className="rounded-xl border p-3 font-semibold" onClick={() => authenticate("register")}>Register</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <header className="border-b bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div><p className="text-sm text-slate-500">Signed in as</p><h1 className="font-semibold">{user.email}</h1></div>
+          <button className="rounded-xl border px-4 py-2" onClick={logout}>Log out</button>
+        </div>
+      </header>
+      <section className="mx-auto max-w-7xl space-y-6 px-6 py-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Metric label="Income" value={money.format(Number(summary?.income ?? 0))} />
+          <Metric label="Expenses" value={money.format(Number(summary?.expenses ?? 0))} />
+          <Metric label="Net" value={netWorthLabel} />
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+          <Panel title="Add transaction">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <select className="rounded-xl border p-3" value={transactionForm.type} onChange={(e) => setTransactionForm({ ...transactionForm, type: e.target.value as TransactionType })}><option>EXPENSE</option><option>INCOME</option></select>
+              <input className="rounded-xl border p-3" value={transactionForm.category} onChange={(e) => setTransactionForm({ ...transactionForm, category: e.target.value })} placeholder="Category" />
+              <input className="rounded-xl border p-3" value={transactionForm.amount} onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })} placeholder="Amount" />
+              <input className="rounded-xl border p-3" type="date" value={transactionForm.transactionDate} onChange={(e) => setTransactionForm({ ...transactionForm, transactionDate: e.target.value })} />
+              <button className="rounded-xl bg-emerald-600 p-3 font-semibold text-white" onClick={saveTransaction}>{editingTransactionId ? "Update" : "Add"}</button>
+            </div>
+            <input className="mt-3 w-full rounded-xl border p-3" value={transactionForm.description} onChange={(e) => setTransactionForm({ ...transactionForm, description: e.target.value })} placeholder="Description" />
+          </Panel>
+
+          <Panel title="Budget management">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <input className="rounded-xl border p-3" value={budgetForm.category} onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })} placeholder="Category" />
+              <input className="rounded-xl border p-3" value={budgetForm.monthlyLimit} onChange={(e) => setBudgetForm({ ...budgetForm, monthlyLimit: e.target.value })} placeholder="Monthly limit" />
+              <button className="rounded-xl bg-slate-900 p-3 font-semibold text-white" onClick={addBudget}>Save</button>
+            </div>
+            <div className="mt-4 space-y-2">{budgets.map((budget) => <Row key={budget.id} label={budget.category} value={money.format(Number(budget.monthlyLimit))} onDelete={() => deleteBudget(budget.id)} />)}</div>
+          </Panel>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Panel title="Monthly trends"><Chart data={trends} kind="line" /></Panel>
+          <Panel title="Category summary"><Chart data={categories} kind="bar" /></Panel>
+        </div>
+
+        <Panel title="AI Copilot">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+            <input className="rounded-xl border p-3" value={aiQuestion} onChange={(e) => setAiQuestion(e.target.value)} placeholder="Ask about your finances" />
+            <button className="rounded-xl bg-purple-700 p-3 font-semibold text-white" onClick={() => runAi("chat")}>Ask AI</button>
+            <button className="rounded-xl border p-3 font-semibold" onClick={() => runAi("summary")}>Spending summary</button>
+          </div>
+          <button className="mt-3 rounded-xl border p-3 font-semibold" onClick={() => runAi("coach")}>Budget coach</button>
+          {aiAnswer && <div className="mt-4 rounded-2xl bg-purple-50 p-4 text-sm leading-6 whitespace-pre-wrap"><p className="mb-2 font-semibold">{aiAnswer.generatedByAi ? "AI-generated" : "Preview mode"}</p>{aiAnswer.answer}</div>}
+          <div className="mt-4 space-y-2">{aiInsights.slice(0, 5).map((insight) => <div key={insight.id} className="rounded-xl border p-3 text-sm text-slate-700">{insight.insightText}</div>)}</div>
         </Panel>
 
         <Panel title="Transactions">
@@ -326,6 +409,9 @@ export default function HomePage() {
             <input className="rounded-xl border border-blue-500/30 p-3 text-slate-950" placeholder="Search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
             <input className="rounded-xl border border-blue-500/30 p-3 text-slate-950" placeholder="Category" value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} />
             <select className="rounded-xl border border-blue-500/30 p-3 text-slate-950" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">All types</option><option value="EXPENSE">Expenses</option><option value="INCOME">Income</option></select>
+            <input className="rounded-xl border p-3" placeholder="Search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+            <input className="rounded-xl border p-3" placeholder="Category" value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} />
+            <select className="rounded-xl border p-3" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">All types</option><option value="EXPENSE">Expenses</option><option value="INCOME">Income</option></select>
             <button className="rounded-xl border p-3 font-semibold" onClick={() => refreshData()}>Apply filters</button>
           </div>
           <div className="overflow-hidden rounded-2xl border">{transactions.map((transaction) => <Row key={transaction.id} label={`${transaction.transactionDate} · ${transaction.category} · ${transaction.description ?? "No description"}`} value={`${transaction.type === "EXPENSE" ? "-" : "+"}${money.format(Number(transaction.amount))}`} onEdit={() => editTransaction(transaction)} onDelete={() => deleteTransaction(transaction.id)} />)}</div>
@@ -337,6 +423,8 @@ export default function HomePage() {
 
 function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded-3xl border border-blue-500/20 bg-slate-950 p-6 shadow-xl shadow-blue-950/30"><p className="text-sm text-blue-200">{label}</p><p className="mt-2 text-3xl font-bold text-white">{value}</p></div>; }
 function Panel({ title, children }: { title: string; children: ReactNode }) { return <section className="rounded-3xl border border-blue-500/20 bg-slate-950 p-6 shadow-xl shadow-blue-950/30"><h2 className="mb-4 text-xl font-semibold text-white">{title}</h2>{children}</section>; }
+function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded-3xl bg-white p-6 shadow-sm"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold">{value}</p></div>; }
+function Panel({ title, children }: { title: string; children: ReactNode }) { return <section className="rounded-3xl bg-white p-6 shadow-sm"><h2 className="mb-4 text-xl font-semibold">{title}</h2>{children}</section>; }
 function Row({ label, value, onDelete, onEdit }: { label: string; value: string; onDelete: () => void; onEdit?: () => void }) { return <div className="flex items-center justify-between gap-4 border-b p-3 last:border-b-0"><span className="text-sm">{label}</span><div className="flex items-center gap-3"><strong>{value}</strong>{onEdit && <button className="text-sm text-blue-600" onClick={onEdit}>Edit</button>}<button className="text-sm text-red-600" onClick={onDelete}>Delete</button></div></div>; }
 function Chart({ data, kind }: { data: Array<MonthlyTrend | CategorySummary>; kind: "line" | "bar" }) {
   const chartData = data.map((item) => "month" in item ? { ...item, month: item.month.toString() } : item);
