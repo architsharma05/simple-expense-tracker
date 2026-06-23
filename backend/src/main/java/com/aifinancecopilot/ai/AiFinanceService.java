@@ -2,6 +2,12 @@ package com.aifinancecopilot.ai;
 
 import com.aifinancecopilot.ai.dto.AiAnswerResponse;
 import com.aifinancecopilot.ai.dto.AiInsightResponse;
+import com.aifinancecopilot.ai.dto.CategorizeTransactionRequest;
+import com.aifinancecopilot.ai.dto.CategorizeTransactionResponse;
+import com.aifinancecopilot.budget.Budget;
+import com.aifinancecopilot.budget.BudgetRepository;
+import com.aifinancecopilot.goal.Goal;
+import com.aifinancecopilot.goal.GoalRepository;
 import com.aifinancecopilot.budget.Budget;
 import com.aifinancecopilot.budget.BudgetRepository;
 import com.aifinancecopilot.transaction.Transaction;
@@ -31,6 +37,16 @@ public class AiFinanceService {
     private final OpenAiClient openAiClient;
     private final TransactionRepository transactionRepository;
     private final BudgetRepository budgetRepository;
+    private final GoalRepository goalRepository;
+    private final AiInsightRepository aiInsightRepository;
+
+    public AiFinanceService(OpenAiClient openAiClient, TransactionRepository transactionRepository,
+                            BudgetRepository budgetRepository, GoalRepository goalRepository,
+                            AiInsightRepository aiInsightRepository) {
+        this.openAiClient = openAiClient;
+        this.transactionRepository = transactionRepository;
+        this.budgetRepository = budgetRepository;
+        this.goalRepository = goalRepository;
     private final AiInsightRepository aiInsightRepository;
 
     public AiFinanceService(OpenAiClient openAiClient, TransactionRepository transactionRepository,
@@ -56,6 +72,15 @@ public class AiFinanceService {
     }
 
     @Transactional
+    public AiAnswerResponse goalCoach(User user) {
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.minusMonths(3).withDayOfMonth(1);
+        String prompt = "Recommend a savings plan for the user goals. Identify monthly savings targets and spending categories to reduce.\n\n"
+                + context(user, from, to) + "\n\nGoals:\n" + goals(user);
+        return answerAndStore(user, prompt);
+    }
+
+    @Transactional
     public AiAnswerResponse chat(User user, String question) {
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusMonths(6).withDayOfMonth(1);
@@ -63,11 +88,34 @@ public class AiFinanceService {
         return answerAndStore(user, prompt);
     }
 
+    @Transactional
+    public CategorizeTransactionResponse categorize(User user, CategorizeTransactionRequest request) {
+        String prompt = "Suggest one concise transaction category for this transaction. Return a short category and rationale.\n"
+                + "Type: " + request.type() + "\nAmount: $" + request.amount() + "\nDescription: " + request.description() + "\n\n"
+                + "Recent user context:\n" + context(user, LocalDate.now().minusMonths(3).withDayOfMonth(1), LocalDate.now());
+        if (openAiClient.isConfigured()) {
+            String answer = openAiClient.generate(SYSTEM_INSTRUCTIONS, prompt);
+            String category = answer.lines().filter(line -> !line.isBlank()).findFirst().orElse("Uncategorized");
+            return new CategorizeTransactionResponse(category.replace("Category:", "").trim(), 0.75, answer, true);
+        }
+        return fallbackCategory(request);
+    }
+
     @Transactional(readOnly = true)
     public List<AiInsightResponse> insights(User user) {
         return aiInsightRepository.findTop20ByUserIdOrderByGeneratedAtDesc(user.getId()).stream()
                 .map(AiInsightResponse::from)
                 .toList();
+    }
+
+    private CategorizeTransactionResponse fallbackCategory(CategorizeTransactionRequest request) {
+        String description = request.description().toLowerCase();
+        String category = description.contains("uber") || description.contains("lyft") || description.contains("gas") ? "Transportation"
+                : description.contains("grocery") || description.contains("restaurant") || description.contains("coffee") ? "Food"
+                : description.contains("rent") || description.contains("mortgage") ? "Housing"
+                : description.contains("netflix") || description.contains("spotify") || description.contains("subscription") ? "Subscriptions"
+                : request.type() == TransactionType.INCOME ? "Income" : "General";
+        return new CategorizeTransactionResponse(category, 0.55, "Rule-based preview categorization because OPENAI_API_KEY is not configured.", false);
     }
 
     private AiAnswerResponse answerAndStore(User user, String prompt) {
@@ -104,6 +152,14 @@ public class AiFinanceService {
                 + "Expense categories:\n" + emptyIfBlank(categoryLines) + "\n\n"
                 + "Budgets:\n" + emptyIfBlank(budgetLines) + "\n\n"
                 + "Recent transactions:\n" + emptyIfBlank(recentLines);
+    }
+
+    private String goals(User user) {
+        List<Goal> goals = goalRepository.findByUserIdOrderByTargetDateAsc(user.getId());
+        String lines = goals.stream()
+                .map(goal -> "- " + goal.getGoalName() + ": target $" + goal.getTargetAmount() + " by " + goal.getTargetDate())
+                .collect(Collectors.joining("\n"));
+        return emptyIfBlank(lines);
     }
 
     private List<Transaction> transactions(UUID userId, LocalDate from, LocalDate to) {

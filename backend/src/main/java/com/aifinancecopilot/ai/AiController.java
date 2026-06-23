@@ -3,6 +3,8 @@ package com.aifinancecopilot.ai;
 import com.aifinancecopilot.ai.dto.AiAnswerResponse;
 import com.aifinancecopilot.ai.dto.AiInsightResponse;
 import com.aifinancecopilot.ai.dto.AiPromptRequest;
+import com.aifinancecopilot.ai.dto.CategorizeTransactionRequest;
+import com.aifinancecopilot.ai.dto.CategorizeTransactionResponse;
 import com.aifinancecopilot.common.api.ApiResponse;
 import com.aifinancecopilot.security.AuthenticatedUser;
 import jakarta.validation.Valid;
@@ -27,9 +29,19 @@ public class AiController {
         return ApiResponse.success(aiFinanceService.budgetCoach(principal.getUser()));
     }
 
+    @PostMapping("/goal-coach")
+    public ApiResponse<AiAnswerResponse> goalCoach(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return ApiResponse.success(aiFinanceService.goalCoach(principal.getUser()));
+    }
+
     @PostMapping("/chat")
     public ApiResponse<AiAnswerResponse> chat(@AuthenticationPrincipal AuthenticatedUser principal, @Valid @RequestBody AiPromptRequest request) {
         return ApiResponse.success(aiFinanceService.chat(principal.getUser(), request.question()));
+    }
+
+    @PostMapping("/categorize-transaction")
+    public ApiResponse<CategorizeTransactionResponse> categorize(@AuthenticationPrincipal AuthenticatedUser principal, @Valid @RequestBody CategorizeTransactionRequest request) {
+        return ApiResponse.success(aiFinanceService.categorize(principal.getUser(), request));
     }
 
     @GetMapping("/insights")

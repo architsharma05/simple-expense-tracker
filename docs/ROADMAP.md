@@ -30,12 +30,12 @@
 
 ## Phase 3: Advanced AI
 
-- Receipt upload and OCR
-- Smart categorization
-- Recurring expense detection
-- Anomaly detection
-- Spending forecasting
-- Goal savings recommendations
+- Receipt upload - implemented; OCR extraction scaffolded
+- Smart categorization - implemented
+- Recurring expense detection - implemented
+- Anomaly detection - implemented
+- Spending forecasting - implemented
+- Goal savings recommendations - implemented as AI goal coaching
 
 ## Phase 4: Production Readiness
 
