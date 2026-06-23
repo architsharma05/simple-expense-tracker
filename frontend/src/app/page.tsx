@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { apiFetch, AiAnswer, AiInsight, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
 import { apiFetch, AuthResponse, Budget, CategorySummary, MonthlySummary, MonthlyTrend, Transaction, TransactionType, User } from "@/lib/api";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -23,6 +24,9 @@ export default function HomePage() {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [trends, setTrends] = useState<MonthlyTrend[]>([]);
+  const [aiAnswer, setAiAnswer] = useState<AiAnswer | null>(null);
+  const [aiInsights, setAiInsights] = useState<AiInsight[]>([]);
+  const [aiQuestion, setAiQuestion] = useState("Where did I spend the most money this month?");
   const [filters, setFilters] = useState({ search: "", category: "", type: "" });
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [transactionForm, setTransactionForm] = useState<TransactionForm>({ type: "EXPENSE", category: "Food", amount: "25.00", description: "", transactionDate: today });
@@ -61,11 +65,14 @@ export default function HomePage() {
     if (filters.search) params.set("search", filters.search);
     if (filters.category) params.set("category", filters.category);
     if (filters.type) params.set("type", filters.type);
+    const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends, nextInsights] = await Promise.all([
     const [nextTransactions, nextBudgets, nextSummary, nextCategories, nextTrends] = await Promise.all([
       apiFetch<Transaction[]>(`/api/transactions?${params.toString()}`, { token: activeToken }),
       apiFetch<Budget[]>("/api/budgets", { token: activeToken }),
       apiFetch<MonthlySummary>(`/api/dashboard/summary?month=${currentMonth}`, { token: activeToken }),
       apiFetch<CategorySummary[]>(`/api/dashboard/category-summary?from=${currentMonth}-01&to=${today}`, { token: activeToken }),
+      apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken }),
+      apiFetch<AiInsight[]>("/api/ai/insights", { token: activeToken })
       apiFetch<MonthlyTrend[]>(`/api/dashboard/monthly-trends?year=${new Date().getFullYear()}`, { token: activeToken })
     ]);
     setTransactions(nextTransactions);
@@ -73,6 +80,7 @@ export default function HomePage() {
     setSummary(nextSummary);
     setCategories(nextCategories);
     setTrends(nextTrends);
+    setAiInsights(nextInsights);
   }
 
   async function saveTransaction() {
@@ -114,6 +122,18 @@ export default function HomePage() {
   async function deleteBudget(id: string) {
     if (!token) return;
     await apiFetch<null>(`/api/budgets/${id}`, { method: "DELETE", token });
+    await refreshData();
+  }
+
+  async function runAi(kind: "summary" | "coach" | "chat") {
+    if (!token) return;
+    const path = kind === "summary" ? "/api/ai/spending-summary" : kind === "coach" ? "/api/ai/budget-coach" : "/api/ai/chat";
+    const answer = await apiFetch<AiAnswer>(path, {
+      method: "POST",
+      token,
+      body: kind === "chat" ? JSON.stringify({ question: aiQuestion }) : undefined
+    });
+    setAiAnswer(answer);
     await refreshData();
   }
 
@@ -192,6 +212,17 @@ export default function HomePage() {
           <Panel title="Monthly trends"><Chart data={trends} kind="line" /></Panel>
           <Panel title="Category summary"><Chart data={categories} kind="bar" /></Panel>
         </div>
+
+        <Panel title="AI Copilot">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+            <input className="rounded-xl border p-3" value={aiQuestion} onChange={(e) => setAiQuestion(e.target.value)} placeholder="Ask about your finances" />
+            <button className="rounded-xl bg-purple-700 p-3 font-semibold text-white" onClick={() => runAi("chat")}>Ask AI</button>
+            <button className="rounded-xl border p-3 font-semibold" onClick={() => runAi("summary")}>Spending summary</button>
+          </div>
+          <button className="mt-3 rounded-xl border p-3 font-semibold" onClick={() => runAi("coach")}>Budget coach</button>
+          {aiAnswer && <div className="mt-4 rounded-2xl bg-purple-50 p-4 text-sm leading-6 whitespace-pre-wrap"><p className="mb-2 font-semibold">{aiAnswer.generatedByAi ? "AI-generated" : "Preview mode"}</p>{aiAnswer.answer}</div>}
+          <div className="mt-4 space-y-2">{aiInsights.slice(0, 5).map((insight) => <div key={insight.id} className="rounded-xl border p-3 text-sm text-slate-700">{insight.insightText}</div>)}</div>
+        </Panel>
 
         <Panel title="Transactions">
           <div className="mb-4 grid gap-3 md:grid-cols-4">
