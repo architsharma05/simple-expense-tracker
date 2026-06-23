@@ -23,6 +23,8 @@ export type Budget = { id: string; category: string; monthlyLimit: number; creat
 export type MonthlySummary = { month: string; income: number; expenses: number; net: number };
 export type CategorySummary = { category: string; total: number };
 export type MonthlyTrend = { month: string; income: number; expenses: number; net: number };
+export type AiAnswer = { answer: string; generatedByAi: boolean; generatedAt: string };
+export type AiInsight = { id: string; insightText: string; generatedAt: string };
 
 export async function apiFetch<T>(path: string, init?: RequestInit & { token?: string }): Promise<T> {
   const headers = new Headers(init?.headers);
